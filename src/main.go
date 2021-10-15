@@ -46,7 +46,7 @@ func ShowImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		fmt.Fprintf(w, "error reading file: %s", err)
 		return
 	}
-	fmt.Fprintf(w, string(img.Body))
+	w.Write(img.Body)
 }
 
 func main() {
