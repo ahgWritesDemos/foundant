@@ -1,0 +1,27 @@
+Image Sharing Service
+
+backend service written in golang
+frontend static web site? simple react site?
+persistence in postgres
+file storage within docker volume
+docker compose for DB, frontend, backend
+
+Tests
+  What needs testing?
+
+API
+  /images/
+    list filenames
+  /images/<id>
+    yield image
+  /images/<id>/metadata
+    who, when, how big
+
+Frontend:
+  start with a static form, go from there
+
+Questions
+  Should I worry about huge images?
+  Should I concern myself with authentication?
+    maybe pass (and trust) an X-whois header
+  What should it be called?
