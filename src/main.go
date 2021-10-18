@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,34 +14,32 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// Declare a map from MIME type to a canonical extension
+//   so that I can use arbitrary filenames
+var canonicalExtensions = map[string]string{
+	// <form accept=".png,.jpg,.jpeg,.gif,.mp4,.webm,.bmp" ... />
+	"image/gif":  ".gif",
+	"image/jpeg": ".jpg",
+}
+
 type Image struct {
+	Id          uuid.UUID
 	Title       string
 	Description string
 	Filename    string
 	Body        []byte
 }
 
-func (i *Image) save(fileHeader *multipart.FileHeader) error {
-	// Given a fleshed-out image, save it to some filename with the right prefix, and note the filename
-	source, err := fileHeader.Open()
-	if err != nil {
-		panic("failed to open parsed form file" + err.Error())
-	}
+var allKnownImages = map[string] *Image{}
 
-	destination, err := os.Create("uploads/" + i.Filename)
-	if err != nil {
-		panic("failed to create destination" + err.Error())
+func loadImage(id string) (*Image, error) {
+	img := allKnownImages[id]
+	if img == nil {
+		return nil, errors.New("no such image")
 	}
-	len, err := io.Copy(destination, source)
-	if err != nil {
-		panic("failed on copy" + err.Error())
-	}
-	log.Print("copied %d bytes", len)
+	filename := img.Filename
 
-	return nil
-}
-
-func loadImage(filename string) (*Image, error) {
+	// find image within list
 	body, err := ioutil.ReadFile("uploads/" + filename)
 	if err != nil {
 		return nil, err
@@ -60,27 +59,30 @@ func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 func Upload(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	r.ParseMultipartForm(32 << 20)
 	file := r.MultipartForm.File["upload"][0]
-	filename := generateFilename(file)
+	uuid, filename := generateFilename(file)
 
 	newImg := &Image{
+		Id:          uuid,
 		Filename:    filename,
 		Title:       r.Form["title"][0],
 		Description: r.Form["description"][0],
 		Body:        nil,
 	}
-	newImg.save(file)
+	persistFile(file, filename)
+	addToIndex(newImg)
 
-	log.Print("uploaded %v", newImg)
-
+	w.WriteHeader(http.StatusSeeOther)
+	w.Header().Set("Location", "images/" + uuid.String())
 }
+
 
 func ListImages(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	fmt.Fprintf(w, "I know about several images")
 }
 
 func ShowImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	filename := ps.ByName("imageId")
-	img, err := loadImage(filename)
+	imageId := ps.ByName("imageId")
+	img, err := loadImage(imageId)
 	if err != nil {
 		fmt.Fprintf(w, "error reading file: %s", err)
 		return
@@ -101,16 +103,29 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
-// Declare a map from MIME type to a canonical extension
-//   so that I can use arbitrary filenames
-var canonicalExtensions = map[string]string{
-	// <form accept=".png,.jpg,.jpeg,.gif,.mp4,.webm,.bmp" ... />
-	"image/gif": ".gif",
-	"image/jpeg": ".jpg",
+func persistFile(fileHeader *multipart.FileHeader, filename string) error {
+	source, err := fileHeader.Open()
+	if err != nil {
+		return err
+	}
+	destination, err := os.Create("uploads/" + filename)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(destination, source); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func generateFilename(fh *multipart.FileHeader) string {
+func addToIndex(img *Image) {
+	allKnownImages[img.Id.String()] = img
+}
+
+func generateFilename(fh *multipart.FileHeader) (uuid.UUID, string) {
 	ext := canonicalExtensions["image/jpeg"]
 	root := uuid.New()
-	return root.String() + ext
+	return root, root.String() + ext
 }
