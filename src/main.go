@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -26,7 +27,7 @@ func (i *Image) save(fileHeader *multipart.FileHeader) error {
 		panic("failed to open parsed form file" + err.Error())
 	}
 
-	destination, err := os.Create(i.Filename)
+	destination, err := os.Create("uploads/" + i.Filename)
 	if err != nil {
 		panic("failed to create destination" + err.Error())
 	}
@@ -59,10 +60,10 @@ func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 func Upload(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	r.ParseMultipartForm(32 << 20)
 	file := r.MultipartForm.File["upload"][0]
-	ext := canonicalFileExtension(file)
+	filename := generateFilename(file)
 
 	newImg := &Image{
-		Filename:    "AHGtmp" + ext,
+		Filename:    filename,
 		Title:       r.Form["title"][0],
 		Description: r.Form["description"][0],
 		Body:        nil,
@@ -100,6 +101,16 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
-func canonicalFileExtension(fh *multipart.FileHeader) string {
-	return ".jpg" // TODO
+// Declare a map from MIME type to a canonical extension
+//   so that I can use arbitrary filenames
+var canonicalExtensions = map[string]string{
+	// <form accept=".png,.jpg,.jpeg,.gif,.mp4,.webm,.bmp" ... />
+	"image/gif": ".gif",
+	"image/jpeg": ".jpg",
+}
+
+func generateFilename(fh *multipart.FileHeader) string {
+	ext := canonicalExtensions["image/jpeg"]
+	root := uuid.New()
+	return root.String() + ext
 }
