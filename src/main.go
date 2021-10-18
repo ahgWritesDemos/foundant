@@ -2,21 +2,41 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
+	"os"
 
 	"github.com/julienschmidt/httprouter"
 )
 
 type Image struct {
-	Filename string
-	Body     []byte
+	Title       string
+	Description string
+	Filename    string
+	Body        []byte
 }
 
-func (i *Image) save() error {
-	filename := "uploads/" + i.Filename // TODO proper path lib?
-	return ioutil.WriteFile(filename, i.Body, 0600)
+func (i *Image) save(fileHeader *multipart.FileHeader) error {
+	// Given a fleshed-out image, save it to some filename with the right prefix, and note the filename
+	source, err := fileHeader.Open()
+	if err != nil {
+		panic("failed to open parsed form file" + err.Error())
+	}
+
+	destination, err := os.Create(i.Filename)
+	if err != nil {
+		panic("failed to create destination" + err.Error())
+	}
+	len, err := io.Copy(destination, source)
+	if err != nil {
+		panic("failed on copy" + err.Error())
+	}
+	log.Print("copied %d bytes", len)
+
+	return nil
 }
 
 func loadImage(filename string) (*Image, error) {
@@ -28,11 +48,29 @@ func loadImage(filename string) (*Image, error) {
 }
 
 func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprint(w, "welcome to the image server\n")
+	// cheap trick to keep the URL tidy
+	body, err := ioutil.ReadFile("static/index.html")
+	if err != nil {
+		fmt.Fprintf(w, "Failed to read static file")
+	}
+	w.Write(body)
 }
 
 func Upload(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "I have uploaded your image")
+	r.ParseMultipartForm(32 << 20)
+	file := r.MultipartForm.File["upload"][0]
+	ext := canonicalFileExtension(file)
+
+	newImg := &Image{
+		Filename:    "AHGtmp" + ext,
+		Title:       r.Form["title"][0],
+		Description: r.Form["description"][0],
+		Body:        nil,
+	}
+	newImg.save(file)
+
+	log.Print("uploaded %v", newImg)
+
 }
 
 func ListImages(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -53,10 +91,15 @@ func main() {
 
 	router := httprouter.New()
 	router.GET("/", Index)
-	router.POST("/images/", Upload)
+	router.POST("/upload/", Upload)
 	router.GET("/images/", ListImages)
 	router.GET("/images/:imageId", ShowImage)
+	router.ServeFiles("/static/*filepath", http.Dir("./static/"))
 
 	log.Println("Starting Server on 8080")
 	log.Fatal(http.ListenAndServe(":8080", router))
+}
+
+func canonicalFileExtension(fh *multipart.FileHeader) string {
+	return ".jpg" // TODO
 }

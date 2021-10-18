@@ -20,8 +20,10 @@ API
 Frontend:
   start with a static form, go from there
 
-Questions
+Questions / TODO
   Should I worry about huge images?
   Should I concern myself with authentication?
     maybe pass (and trust) an X-whois header
   What should it be called?
+
+  name collisions clobber the old file
