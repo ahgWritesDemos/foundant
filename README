@@ -22,8 +22,7 @@ Frontend:
 
 Questions / TODO
   Should I worry about huge images?
-  Should I concern myself with authentication?
-    maybe pass (and trust) an X-whois header
   What should it be called?
 
-  name collisions clobber the old file
+  on upload, redirect to the detail page of the new image
+  maintain an in-memory list of images
