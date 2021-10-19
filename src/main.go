@@ -77,7 +77,7 @@ func Upload(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 
 func ListImages(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "I know about several images")
+	fmt.Fprintf(w, "I know about %d images", len(allKnownImages))
 }
 
 func ShowImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
