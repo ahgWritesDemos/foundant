@@ -1,28 +1,13 @@
-Image Sharing Service
+Hello, Foundant!
 
-backend service written in golang
-frontend static web site? simple react site?
-persistence in postgres
-file storage within docker volume
-docker compose for DB, frontend, backend
+Thanks for taking the time to look over my work.
 
-Tests
-  What needs testing?
+I stuck mainly to the Go standard library, though you'll notice that I included the `httprouter` library. I'm familiar with this library, and chose it because I expected I'd want to pull parameters from the URL, and I didn't want to hand-parse them. I also like its `router.METHOD` family of convenience functions.
 
-API
-  /images/
-    list filenames
-  /images/<id>
-    yield image
-  /images/<id>/metadata
-    who, when, how big
+As you'll notice, I spent little time on the front-end. My goal was to stand up a simple react app to consume the various endpoints, but given the time constraint I prioritized working code over polish. I considered rendering all pages server-side, but in general that is not the direction I would take in 2021, so when I found myself looking for a templating library, I made the decision to expose sensible JSON endpoints, and rely on your imagination (and charity) for the implementation.
 
-Frontend:
-  start with a static form, go from there
-
-Questions / TODO
-  Should I worry about huge images?
-  What should it be called?
-
-  on upload, redirect to the detail page of the new image
-  maintain an in-memory list of images
+Some considerations:
+ Worried about duplicate images, I decided to keep filenames arbitrary, and maintain metadata separately.
+ A future version might detect actual duplicate images, and point both metadata records to the same backing file.
+ UUIDs are heinous to human eyes. A bespoke random name generator would produce filenames that are easier to type.
+ Actual images can be seen at `localhost:8080/images/<uuid>`
