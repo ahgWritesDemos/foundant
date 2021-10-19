@@ -22,29 +22,14 @@ var canonicalExtensions = map[string]string{
 	"image/jpeg": ".jpg",
 }
 
+var allKnownImages = map[string]*Image{}
+
 type Image struct {
 	Id          uuid.UUID
 	Title       string
 	Description string
 	Filename    string
 	Body        []byte
-}
-
-var allKnownImages = map[string] *Image{}
-
-func loadImage(id string) (*Image, error) {
-	img := allKnownImages[id]
-	if img == nil {
-		return nil, errors.New("no such image")
-	}
-	filename := img.Filename
-
-	// find image within list
-	body, err := ioutil.ReadFile("uploads/" + filename)
-	if err != nil {
-		return nil, err
-	}
-	return &Image{Filename: filename, Body: body}, nil
 }
 
 func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -72,9 +57,8 @@ func Upload(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	addToIndex(newImg)
 
 	w.WriteHeader(http.StatusSeeOther)
-	w.Header().Set("Location", "images/" + uuid.String())
+	w.Header().Set("Location", "images/"+uuid.String())
 }
-
 
 func ListImages(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	fmt.Fprintf(w, "I know about %d images", len(allKnownImages))
@@ -90,18 +74,7 @@ func ShowImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	w.Write(img.Body)
 }
 
-func main() {
-
-	router := httprouter.New()
-	router.GET("/", Index)
-	router.POST("/upload/", Upload)
-	router.GET("/images/", ListImages)
-	router.GET("/images/:imageId", ShowImage)
-	router.ServeFiles("/static/*filepath", http.Dir("./static/"))
-
-	log.Println("Starting Server on 8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
-}
+/*--------------------------------------------*/
 
 func persistFile(fileHeader *multipart.FileHeader, filename string) error {
 	source, err := fileHeader.Open()
@@ -128,4 +101,33 @@ func generateFilename(fh *multipart.FileHeader) (uuid.UUID, string) {
 	ext := canonicalExtensions["image/jpeg"]
 	root := uuid.New()
 	return root, root.String() + ext
+}
+
+func loadImage(id string) (*Image, error) {
+	img := allKnownImages[id]
+	if img == nil {
+		return nil, errors.New("no such image")
+	}
+	filename := img.Filename
+
+	body, err := ioutil.ReadFile("uploads/" + filename)
+	if err != nil {
+		return nil, err
+	}
+	return &Image{Filename: filename, Body: body}, nil
+}
+
+/*--------------------------------------------*/
+
+func main() {
+
+	router := httprouter.New()
+	router.GET("/", Index)
+	router.POST("/upload/", Upload)
+	router.GET("/images/", ListImages)
+	router.GET("/images/:imageId", ShowImage)
+	router.ServeFiles("/static/*filepath", http.Dir("./static/"))
+
+	log.Println("Starting Server on 8080")
+	log.Fatal(http.ListenAndServe(":8080", router))
 }
