@@ -19,8 +19,12 @@ import (
 //   so that I can use arbitrary filenames
 var canonicalExtensions = map[string]string{
 	// <form accept=".png,.jpg,.jpeg,.gif,.mp4,.webm,.bmp" ... />
+	"image/bmp":  ".bmp",
 	"image/gif":  ".gif",
 	"image/jpeg": ".jpg",
+	"image/png":  ".png",
+	"video/webm": ".webm",
+	"video/mp4":  ".mp4",
 }
 
 var allKnownImages = map[string]*Image{}
