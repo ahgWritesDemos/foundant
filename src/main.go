@@ -56,8 +56,8 @@ func Upload(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	persistFile(file, filename)
 	addToIndex(newImg)
 
+	w.Header().Set("Location", "../images/"+uuid.String())
 	w.WriteHeader(http.StatusSeeOther)
-	w.Header().Set("Location", "images/"+uuid.String())
 }
 
 func ListImages(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -70,21 +70,31 @@ func ListImages(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	w.Write(rsp)
 }
 
-func GetImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func GetImageMetadata(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	imageId := ps.ByName("imageId")
 	img, err := loadImage(imageId)
 	if err != nil {
 		fmt.Fprintf(w, "error reading file: %s", err)
 		return
 	}
+	jsonResponse(w, img)
+}
 
-	rsp, err := json.Marshal(img)
+func GetImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	imageId := ps.ByName("imageId")
+	img, err := loadImage(imageId)
 	if err != nil {
-		fmt.Fprintf(w, "Failed json marshaling %s", imageId)
+		fmt.Fprintf(w, "error finding image %s", imageId)
 		return
 	}
 
-	w.Write(rsp)
+	body, err := ioutil.ReadFile("uploads/" + img.Filename)
+	if err != nil {
+		fmt.Fprintf(w, "error reading image: %s", err)
+		return
+	}
+
+	w.Write(body)
 }
 
 /*--------------------------------------------*/
@@ -130,6 +140,16 @@ func loadImage(id string) (*Image, error) {
 		nil
 }
 
+func jsonResponse(w http.ResponseWriter, v interface{}) {
+	rsp, err := json.Marshal(v)
+	if err != nil {
+		fmt.Fprintf(w, "Failed json marshaling")
+		return
+	}
+
+	w.Write(rsp)
+}
+
 /*--------------------------------------------*/
 
 func main() {
@@ -139,6 +159,7 @@ func main() {
 	router.POST("/upload/", Upload)
 	router.GET("/images/", ListImages)
 	router.GET("/images/:imageId", GetImage)
+	router.GET("/images/:imageId/metadata", GetImageMetadata)
 	router.ServeFiles("/static/*filepath", http.Dir("./static/"))
 
 	log.Println("Starting Server on 8080")
