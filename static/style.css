@@ -7,8 +7,9 @@ body {
     color: #d3d3d3;
     background-color: #404040;
 }
-img {
-    max-width: 100%;
-    display: block;
-    margin: .75em auto;
+.nav {
+    padding: 0% 0% 8% 0%;
+}
+a {
+    color: #d3a3e3;
 }
