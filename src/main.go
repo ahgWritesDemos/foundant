@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -25,11 +26,10 @@ var canonicalExtensions = map[string]string{
 var allKnownImages = map[string]*Image{}
 
 type Image struct {
-	Id          uuid.UUID
-	Title       string
-	Description string
-	Filename    string
-	Body        []byte
+	Id          uuid.UUID `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Filename    string    `json:"filename"`
 }
 
 func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -37,6 +37,7 @@ func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	body, err := ioutil.ReadFile("static/index.html")
 	if err != nil {
 		fmt.Fprintf(w, "Failed to read static file")
+		return
 	}
 	w.Write(body)
 }
@@ -51,7 +52,6 @@ func Upload(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		Filename:    filename,
 		Title:       r.Form["title"][0],
 		Description: r.Form["description"][0],
-		Body:        nil,
 	}
 	persistFile(file, filename)
 	addToIndex(newImg)
@@ -61,17 +61,30 @@ func Upload(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func ListImages(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "I know about %d images", len(allKnownImages))
+	rsp, err := json.Marshal(allKnownImages)
+	if err != nil {
+		fmt.Fprintf(w, "Failed json marshaling")
+		return
+	}
+
+	w.Write(rsp)
 }
 
-func ShowImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func GetImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	imageId := ps.ByName("imageId")
 	img, err := loadImage(imageId)
 	if err != nil {
 		fmt.Fprintf(w, "error reading file: %s", err)
 		return
 	}
-	w.Write(img.Body)
+
+	rsp, err := json.Marshal(img)
+	if err != nil {
+		fmt.Fprintf(w, "Failed json marshaling %s", imageId)
+		return
+	}
+
+	w.Write(rsp)
 }
 
 /*--------------------------------------------*/
@@ -108,13 +121,13 @@ func loadImage(id string) (*Image, error) {
 	if img == nil {
 		return nil, errors.New("no such image")
 	}
-	filename := img.Filename
-
-	body, err := ioutil.ReadFile("uploads/" + filename)
-	if err != nil {
-		return nil, err
-	}
-	return &Image{Filename: filename, Body: body}, nil
+	return &Image{
+			Filename:    img.Filename,
+			Id:          img.Id,
+			Title:       img.Title,
+			Description: img.Description,
+		},
+		nil
 }
 
 /*--------------------------------------------*/
@@ -125,7 +138,7 @@ func main() {
 	router.GET("/", Index)
 	router.POST("/upload/", Upload)
 	router.GET("/images/", ListImages)
-	router.GET("/images/:imageId", ShowImage)
+	router.GET("/images/:imageId", GetImage)
 	router.ServeFiles("/static/*filepath", http.Dir("./static/"))
 
 	log.Println("Starting Server on 8080")
